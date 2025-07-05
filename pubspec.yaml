@@ -1,0 +1,46 @@
+name: maintenance_app
+description: "Une application de gestion de maintenance industrielle."
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations: 
+    sdk: flutter
+
+  # Pour le stockage local
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Pour la gestion de l'état et l'injection de dépendances
+  provider: ^6.1.1
+  get_it: ^7.6.7
+
+  # Pour formater les dates
+  intl: ^0.20.2
+
+  # Pour les graphiques du dashboard
+  fl_chart: ^0.66.2
+
+  # Pour générer des ID uniques
+  uuid: ^4.3.3
+
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Outils pour la génération de code Hive
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.8
+
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
