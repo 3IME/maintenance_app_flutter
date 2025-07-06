@@ -1,14 +1,17 @@
-// lib/screens/dashboard_screen.dart
-
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
+
+import 'package:maintenance_app/core/theme/theme_cubit.dart';
 import 'package:maintenance_app/models/equipement.dart';
+import 'package:maintenance_app/services/hive_service.dart';
+
 import 'package:maintenance_app/screens/equipements/equipement_list_screen.dart';
 import 'package:maintenance_app/screens/interventions/intervention_list_screen.dart';
 import 'package:maintenance_app/screens/pannes/panne_list_screen.dart';
-import 'package:maintenance_app/services/hive_service.dart';
-import 'package:provider/provider.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
+import 'package:maintenance_app/screens/collaborateurs/collaborateur_list_screen.dart';
+import 'package:maintenance_app/screens/planning/planning_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -19,44 +22,53 @@ class DashboardScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     required String value,
-    required Color color,
+    required Color accentColor,
   }) {
-    return Card(
-      clipBehavior: Clip.antiAlias, // Coupe le contenu qui déborde
-      color: color.withAlpha((255 * 0.1).round()),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color;
 
-        // On utilise SingleChildScrollView pour éviter les erreurs d'overflow
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 8),
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.bodyLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              // FittedBox pour que le texte se redimensionne si besoin
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: accentColor, width: 5),
           ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(icon, size: 32, color: accentColor),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: textColor?.withAlpha((255 * 0.8).round()),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: accentColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -64,13 +76,11 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // On écoute les changements pour que le dashboard se mette à jour
     final hiveService = context.watch<HiveService>();
     final equipements = hiveService.equipementsBox.values.toList();
     final interventions = hiveService.interventionsBox.values.toList();
     final pannes = hiveService.pannesBox.values.toList();
 
-    // Calculs pour les statistiques
     final totalCost =
         interventions.fold<double>(0, (sum, item) => sum + item.cout);
     final maintenanceEnRetard = equipements
@@ -80,7 +90,6 @@ class DashboardScreen extends StatelessWidget {
         .where((e) => e.maintenanceStatus == MaintenanceStatus.bientot)
         .length;
 
-    // Données pour la grille de statistiques
     final statCardsData = [
       {
         'icon': Icons.precision_manufacturing,
@@ -103,7 +112,8 @@ class DashboardScreen extends StatelessWidget {
       {
         'icon': Icons.euro,
         'title': 'Coût Total',
-        'value': NumberFormat.currency(locale: 'fr_FR', symbol: '€')
+        'value': NumberFormat.currency(
+                locale: 'fr_FR', symbol: '€', decimalDigits: 0)
             .format(totalCost),
         'color': Colors.red
       },
@@ -113,7 +123,18 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Dashboard de Maintenance'),
         centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        actions: [
+          BlocBuilder<ThemeCubit, ThemeMode>(
+            builder: (context, state) {
+              return IconButton(
+                icon: Icon(state == ThemeMode.light
+                    ? Icons.dark_mode_outlined
+                    : Icons.light_mode_outlined),
+                onPressed: () => context.read<ThemeCubit>().toggleTheme(),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -140,7 +161,7 @@ class DashboardScreen extends StatelessWidget {
                   icon: cardData['icon'] as IconData,
                   title: cardData['title'] as String,
                   value: cardData['value'] as String,
-                  color: cardData['color'] as Color,
+                  accentColor: cardData['color'] as Color,
                 );
               },
             ),
@@ -156,6 +177,8 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _buildTypeChart(context, equipements),
             const SizedBox(height: 24),
+
+            // --- SECTION GESTION (MODIFIÉE AVEC UNE LISTE VERTICALE) ---
             Text("Gestion", style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             _buildNavigationCard(
@@ -167,6 +190,11 @@ class DashboardScreen extends StatelessWidget {
                 Icons.build_outlined, const InterventionListScreen()),
             _buildNavigationCard(context, 'Gérer les Pannes',
                 Icons.error_outline, const PanneListScreen()),
+            _buildNavigationCard(context, 'Gérer les Collaborateurs',
+                Icons.people_alt_outlined, const CollaborateurListScreen()),
+            _buildNavigationCard(context, 'Planning de Maintenance',
+                Icons.calendar_month_outlined, const PlanningScreen()),
+            const SizedBox(height: 24), // Espace à la fin de la page
           ],
         ),
       ),
@@ -224,54 +252,69 @@ class DashboardScreen extends StatelessWidget {
       typeCounts[equipement.type] = (typeCounts[equipement.type] ?? 0) + 1;
     }
 
-    final List<PieChartSectionData> sections = [];
     final List<Color> colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.red,
-      Colors.teal
+      Colors.blue.shade400,
+      Colors.green.shade400,
+      Colors.orange.shade400,
+      Colors.purple.shade400,
+      Colors.red.shade400,
+      Colors.teal.shade400,
+      Colors.pink.shade300,
+      Colors.amber.shade600,
     ];
+
+    final List<PieChartSectionData> sections = [];
     int colorIndex = 0;
 
     typeCounts.forEach((type, count) {
-      final section = PieChartSectionData(
-        color: colors[colorIndex % colors.length],
-        value: count.toDouble(),
-        title: '$count',
-        radius: 60,
-        titleStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          shadows: [Shadow(color: Colors.black, blurRadius: 2)],
+      sections.add(
+        PieChartSectionData(
+          color: colors[colorIndex % colors.length],
+          value: count.toDouble(),
+          title: '$count',
+          radius: 50,
+          titleStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            shadows: [Shadow(color: Colors.black, blurRadius: 2)],
+          ),
         ),
       );
-      sections.add(section);
       colorIndex++;
     });
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 150,
-              child: PieChart(
-                  PieChartData(sections: sections, centerSpaceRadius: 40)),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: typeCounts.keys.map((type) {
-                final index = typeCounts.keys.toList().indexOf(type);
-                return _buildLegend(type, colors[index % colors.length]);
-              }).toList(),
-            )
-          ],
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: 280,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Expanded(
+                child: PieChart(
+                  PieChartData(
+                    sections: sections,
+                    centerSpaceRadius: 35,
+                    pieTouchData: PieTouchData(
+                      touchCallback: (event, pieTouchResponse) {},
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                alignment: WrapAlignment.center,
+                children: typeCounts.keys.map((type) {
+                  final index = typeCounts.keys.toList().indexOf(type);
+                  return _buildLegend(type, colors[index % colors.length]);
+                }).toList(),
+              )
+            ],
+          ),
         ),
       ),
     );
@@ -282,14 +325,18 @@ class DashboardScreen extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 16, height: 16, color: color),
-        const SizedBox(width: 8),
+        Container(
+          width: 12,
+          height: 12,
+          color: color,
+        ),
+        const SizedBox(width: 6),
         Text(text),
       ],
     );
   }
 
-  // Widget pour les cartes de navigation
+  // --- NOUVELLE VERSION DE LA CARTE DE NAVIGATION (STYLE LISTE) ---
   Widget _buildNavigationCard(
       BuildContext context, String title, IconData icon, Widget screen) {
     return Card(
