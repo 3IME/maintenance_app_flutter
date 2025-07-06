@@ -15,7 +15,7 @@ class InterventionListScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Liste des Interventions'),
+        title: const Text('Liste des '),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),

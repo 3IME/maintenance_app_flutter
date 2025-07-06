@@ -3,7 +3,6 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:maintenance_app/screens/dashboard_screen.dart';
 import 'package:maintenance_app/services/hive_service.dart';
 import 'package:provider/provider.dart';
-// --- AJOUTEZ CET IMPORT ---
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
