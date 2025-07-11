@@ -5,6 +5,11 @@ import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:maintenance_app/screens/planning/reservation_form_screen.dart';
 
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+import 'package:maintenance_app/services/pdf_generator.dart';
+import 'package:intl/intl.dart';
+
 class PlanningScreen extends StatefulWidget {
   const PlanningScreen({super.key});
   @override
@@ -116,6 +121,42 @@ class _PlanningScreenState extends State<PlanningScreen> {
               tooltip: 'Ajouter un rendez-vous',
               onPressed: () => _navigateToForm(
                   date: _controller.displayDate ?? DateTime.now())),
+          IconButton(
+            icon: const Icon(Icons.print_outlined),
+            tooltip: 'Imprimer le planning',
+            onPressed: () async {
+              // On récupère la liste au moment du clic
+              final reservations =
+                  context.read<HiveService>().reservationsBox.values.toList();
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+              // On vérifie MAINTENANT si la liste est vide
+              if (reservations.isEmpty) {
+                // Si elle est vide, on affiche un message clair et on arrête tout.
+                scaffoldMessenger.showSnackBar(const SnackBar(
+                    content: Text('Aucune réservation à imprimer.')));
+                return;
+              }
+
+              // Si on arrive ici, c'est que la liste n'est PAS vide.
+              // On peut continuer avec la génération du PDF.
+              scaffoldMessenger.showSnackBar(
+                  const SnackBar(content: Text('Génération du PDF...')));
+
+              final pdfData = await PdfGenerator.generateReservationsPdf(
+                reservations,
+                context.read<HiveService>().collaborateursBox,
+              );
+
+              if (!mounted) return;
+
+              await Printing.layoutPdf(
+                onLayout: (PdfPageFormat format) async => pdfData,
+                name:
+                    'planning_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
+              );
+            },
+          ),
           PopupMenuButton<CalendarView>(
             icon: const Icon(Icons.view_module),
             tooltip: 'Changer de vue',

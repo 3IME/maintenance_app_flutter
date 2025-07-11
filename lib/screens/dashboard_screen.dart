@@ -12,6 +12,7 @@ import 'package:maintenance_app/screens/interventions/intervention_list_screen.d
 import 'package:maintenance_app/screens/pannes/panne_list_screen.dart';
 import 'package:maintenance_app/screens/collaborateurs/collaborateur_list_screen.dart';
 import 'package:maintenance_app/screens/planning/planning_screen.dart';
+import 'package:maintenance_app/screens/shop/shop_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -178,7 +179,7 @@ class DashboardScreen extends StatelessWidget {
             _buildTypeChart(context, equipements),
             const SizedBox(height: 24),
 
-            // --- SECTION GESTION (MODIFIÉE AVEC UNE LISTE VERTICALE) ---
+            // --- SECTION GESTION
             Text("Gestion", style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             _buildNavigationCard(
@@ -194,6 +195,14 @@ class DashboardScreen extends StatelessWidget {
                 Icons.people_alt_outlined, const CollaborateurListScreen()),
             _buildNavigationCard(context, 'Planning de Maintenance',
                 Icons.calendar_month_outlined, const PlanningScreen()),
+            const SizedBox(height: 24), // Espace à la fin de la page
+
+            // --- SECTION MAGASIN
+            Text("Magasin", style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            _buildNavigationCard(context, 'Gérer les pièces détachées',
+                Icons.inventory_2_outlined, const ShopScreen()),
+
             const SizedBox(height: 24), // Espace à la fin de la page
           ],
         ),

@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:maintenance_app/models/equipement.dart';
 import 'package:maintenance_app/models/intervention.dart';
 import 'package:maintenance_app/models/panne.dart';
+import 'package:maintenance_app/models/article.dart';
 import 'package:uuid/uuid.dart';
 import 'package:maintenance_app/models/reservation.dart';
 
@@ -17,6 +18,7 @@ class HiveService extends ChangeNotifier {
   static const String pannesBoxName = 'pannes';
   static const String collaborateursBoxName = 'collaborateurs';
   static const String reservationsBoxName = 'reservations';
+  static const String articlesBoxName = 'articles';
 
   var uuid = const Uuid();
 
@@ -44,6 +46,9 @@ class HiveService extends ChangeNotifier {
     if (!Hive.isAdapterRegistered(ReservationAdapter().typeId)) {
       Hive.registerAdapter(ReservationAdapter());
     }
+    if (!Hive.isAdapterRegistered(ArticleAdapter().typeId)) {
+      Hive.registerAdapter(ArticleAdapter());
+    }
 
     // Ouverture des boîtes
     await Hive.openBox<Equipement>(equipementsBoxName);
@@ -51,6 +56,7 @@ class HiveService extends ChangeNotifier {
     await Hive.openBox<Panne>(pannesBoxName);
     await Hive.openBox<Collaborateur>(collaborateursBoxName);
     await Hive.openBox<Reservation>(reservationsBoxName);
+    await Hive.openBox<Article>(articlesBoxName);
 
     // Ajout des données de démo si les boîtes sont vides
     await addDemoData();
@@ -70,6 +76,7 @@ class HiveService extends ChangeNotifier {
       Hive.box<Collaborateur>(collaborateursBoxName);
   Box<Reservation> get reservationsBox =>
       Hive.box<Reservation>(reservationsBoxName);
+  Box<Article> get articlesBox => Hive.box<Article>(articlesBoxName);
 
   // --- OPÉRATIONS CRUD ---
 
@@ -164,7 +171,34 @@ class HiveService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- DONNÉES DE DÉMONSTRATION ---
+  // CRUD pour article
+  Future<void> addOrUpdateArticle(Article article) async {
+    if (article.isInBox) {
+      await article.save(); // Met à jour l'article existant
+    } else {
+      await articlesBox.put(
+          article.codeArticle, article); // Ajoute un nouvel article
+    }
+    notifyListeners();
+  }
+
+  Future<void> deleteArticle(String codeArticle) async {
+    // <<< Le type de la clé doit être String
+    await articlesBox
+        .delete(codeArticle); // Supprime l'article par son codeArticle
+    notifyListeners();
+  }
+
+  Article? getArticleByCode(String codeArticle) {
+    // <<< Nom de méthode plus clair
+    return articlesBox.get(codeArticle);
+  }
+
+  List<Article> getAllArticles() {
+    return articlesBox.values.toList();
+  }
+
+  // --- DONNÉES DE N ---
   Future<void> addDemoData() async {
     if (equipementsBox.isEmpty) {
       final equipements = [
@@ -188,7 +222,7 @@ class HiveService extends ChangeNotifier {
       ];
       // Boucle corrigée pour ajouter les équipements
       for (var e in equipements) {
-        await addOrUpdateEquipement(e);
+        await equipementsBox.put(e.id, e);
       }
     }
 
@@ -284,6 +318,46 @@ class HiveService extends ChangeNotifier {
       ];
       for (var c in collaborateurs) {
         await collaborateursBox.add(c);
+      }
+    }
+
+    // Ajout de données de démonstration pour les articles ---
+    if (articlesBox.isEmpty) {
+      final articles = [
+        Article(
+          category: "Consommables",
+          codeArticle: "CONS001",
+          stockInitial: 100,
+          stockMini: 20,
+          stockMaxi: 200,
+          pointCommande: 30,
+          prixUnitaire: 5.99,
+          commentaire: "Gants de protection taille L",
+        ),
+        Article(
+          category: "Outillages manuels",
+          codeArticle: "OUT001",
+          stockInitial: 10,
+          stockMini: 2,
+          stockMaxi: 15,
+          pointCommande: 3,
+          prixUnitaire: 49.99,
+          commentaire: "Clé à molette réglable 300mm",
+        ),
+        Article(
+          category: "Visseries",
+          codeArticle: "VIS001",
+          stockInitial: 500,
+          stockMini: 100,
+          stockMaxi: 1000,
+          pointCommande: 150,
+          prixUnitaire: 0.15,
+          commentaire: "Vis M8x20mm acier inoxydable",
+        ),
+      ];
+      for (var article in articles) {
+        await articlesBox.put(article.codeArticle, article);
+        // Utilisation de add pour les nouveaux articles
       }
     }
   }

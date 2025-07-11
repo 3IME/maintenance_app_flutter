@@ -81,7 +81,7 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
 
       final reservation = widget.reservation ?? Reservation();
       reservation.subject = _subjectController.text;
-      reservation.colorValue = _selectedColor.value;
+      reservation.colorValue = _selectedColor.toARGB32();
       reservation.resourceIds = _selectedCollaborateurKeys;
 
       if (_isAllDay) {
