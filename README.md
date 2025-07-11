@@ -6,7 +6,7 @@ Une application **légère** de GMAO
 ## Description
 
 Cette GMAO utilise une base de données HIVE local, et ne
-peut pas être utilisé en multi-utilisateurs.
+peut pas être utilisée en multi-utilisateurs.
 
 Fonctions :
 
