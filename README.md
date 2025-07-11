@@ -1,16 +1,25 @@
-# maintenance_app
+# maintenance_app   ![3IME](https://github.com/user-attachments/assets/26dde10f-cdf1-4930-9474-060955a87148)
 
-A new Flutter project.
+Une application **légère** de GMAO    
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
+## Description
 
-A few resources to get you started if this is your first Flutter project:
+Cette GMAO utilise une base de données HIVE local, et ne
+peut pas être utilisé en multi-utilisateurs.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Fonctions :
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Dashboard
+- Gestion des équipements
+- Gestion des interventions
+- Gestion des pannes
+- Gestion des collaborateurs
+- Planning de maintenance
+- Gestions des pièces détachées
+
+  Made with &#x1F496; by 3IME
+
+
+
+
