@@ -1,37 +1,48 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// test/widget_test.dart
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:maintenance_app/main.dart'; // Assurez-vous que l'import est correct
+import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'package:maintenance_app/main.dart'; // Contient MainApplicationWidget
+import 'package:maintenance_app/services/hive_service.dart';
+import 'package:maintenance_app/core/theme/theme_cubit.dart';
+import 'package:maintenance_app/screens/dashboard_screen.dart'; // Pour le test du Dashboard
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    // --- CORRECTION ICI ---
-    await tester.pumpWidget(const MaintenanceApp());
-    // --- FIN DE LA CORRECTION ---
+  testWidgets('Test du démarrage de l\'application et du SplashScreen',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<HiveService>(create: (_) => HiveService()),
+          BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+        ],
+        // Utilisez MainApplicationWidget ici !
+        child:
+            const MainApplicationWidget(), // Le nom de votre classe d'application principale
+      ),
+    );
 
-    // Le reste du test va échouer car il cherche un '0' et un '1' qui n'existent plus
-    // sur l'écran du dashboard. Vous pouvez le modifier ou le commenter.
-    // Pour l'instant, nous allons le commenter pour que le test passe sans erreur.
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text('Dashboard de Maintenance'), findsNothing);
+  });
 
-    // Verify that our counter starts at 0.
-    // expect(find.text('0'), findsOneWidget);
-    // expect(find.text('1'), findsNothing);
+  testWidgets('Test du contenu du DashboardScreen',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<HiveService>(create: (_) => HiveService()),
+          BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+        ],
+        child: const MaterialApp(
+          home: DashboardScreen(),
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    // await tester.tap(find.byIcon(Icons.add));
-    // await tester.pump();
-
-    // Verify that our counter has incremented.
-    // expect(find.text('0'), findsNothing);
-    // expect(find.text('1'), findsOneWidget);
-
-    // Un test plus pertinent pour notre application serait de vérifier la présence du titre du dashboard.
     expect(find.text('Dashboard de Maintenance'), findsOneWidget);
   });
 }

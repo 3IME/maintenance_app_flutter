@@ -13,6 +13,11 @@ import 'package:maintenance_app/screens/pannes/panne_list_screen.dart';
 import 'package:maintenance_app/screens/collaborateurs/collaborateur_list_screen.dart';
 import 'package:maintenance_app/screens/planning/planning_screen.dart';
 import 'package:maintenance_app/screens/shop/shop_screen.dart';
+import 'package:lottie/lottie.dart';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:maintenance_app/screens/kanban/kanban_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -125,6 +130,12 @@ class DashboardScreen extends StatelessWidget {
         title: const Text('Dashboard de Maintenance'),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: () {
+              _showAproposDialog(context);
+            },
+          ),
           BlocBuilder<ThemeCubit, ThemeMode>(
             builder: (context, state) {
               return IconButton(
@@ -195,6 +206,8 @@ class DashboardScreen extends StatelessWidget {
                 Icons.people_alt_outlined, const CollaborateurListScreen()),
             _buildNavigationCard(context, 'Planning de Maintenance',
                 Icons.calendar_month_outlined, const PlanningScreen()),
+            _buildNavigationCard(context, 'Kanban', Icons.view_kanban_outlined,
+                const KanbanScreen()),
             const SizedBox(height: 24), // Espace à la fin de la page
 
             // --- SECTION MAGASIN
@@ -360,5 +373,150 @@ class DashboardScreen extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+void _showAproposDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Center(
+        // Centrer la boîte de dialogue
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          contentPadding: EdgeInsets.zero, // Supprimer les marges par défaut
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  const SizedBox(
+                    width: 300,
+                    height: 323,
+                  ),
+                  Container(
+                    width: 300,
+                    height: 300,
+                    //color: Colors.white,
+                    alignment: Alignment.centerLeft,
+                    child: Lottie.asset('assets/blob_lottie.json',
+                        width: 300, height: 300, fit: BoxFit.fill),
+                  ),
+                  Positioned(
+                    top: 40,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      margin: const EdgeInsets.all(
+                          10), // Marge entre l'image et les bords
+                      decoration: const BoxDecoration(
+                        color: Colors.transparent, // Couleur de fond du cercle
+                        shape: BoxShape.circle, // Forme circulaire
+                        image: DecorationImage(
+                          image: AssetImage(
+                              'assets/Eric-portrait-petit-Alpha.png'),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 80,
+                    left: 40, // Descend le demi-cercle
+                    child: CustomPaint(
+                      size: const Size(320, 160), // Taille du demi-cercle
+                      painter: HalfCircle(),
+                    ),
+                  ),
+                  Positioned(
+                    top: 270,
+                    child: Column(
+                      // Utilisez une colonne pour empiler le texte et le lien
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          '3IME',
+                          style: TextStyle(
+                            color: Colors
+                                .black, // Adaptez la couleur si votre thème est sombre
+                            fontFamily: 'Inter',
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        // Ajout du lien
+                        GestureDetector(
+                          onTap: () async {
+                            final Uri url = Uri.parse('https://www.3ime.fr/');
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url);
+                            } else {
+                              // Gérer le cas où le lien ne peut pas être ouvert
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text('Impossible d\'ouvrir le lien')),
+                              );
+                            }
+                          },
+                          child: const Text(
+                            'www.3ime.fr',
+                            style: TextStyle(
+                              color: Colors.blue, // Couleur de lien typique
+                              decoration: TextDecoration
+                                  .underline, // Souligner pour indiquer que c'est un lien
+                              fontSize: 16.0,
+                              decorationColor: Colors.blue,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Fermer l'AlertDialog
+                },
+                icon: const Icon(Icons.exit_to_app),
+                label: const Text('Fermer'),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class HalfCircle extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const rect = Rect.fromLTRB(0, 0, 220, 180);
+    const startAngle = 0.0;
+    const sweepAngle = math.pi;
+    const useCenter = false;
+    final paint = Paint()
+      ..shader =
+          ui.Gradient.linear(const Offset(0, 0), const Offset(220, 180), [
+        const Color(0xffda1b60),
+        const Color(0xffff8a00),
+      ])
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10;
+
+    canvas.drawArc(rect, startAngle, sweepAngle, useCenter, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return false;
   }
 }

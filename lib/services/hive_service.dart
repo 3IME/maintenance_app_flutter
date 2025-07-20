@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:maintenance_app/models/equipement.dart';
 import 'package:maintenance_app/models/intervention.dart';
@@ -11,6 +10,10 @@ import 'package:maintenance_app/models/reservation.dart';
 import 'package:maintenance_app/models/collaborateur.dart';
 import 'package:maintenance_app/models/role.dart';
 
+// IMPORTANT: Assurez-vous que ces imports sont présents
+import 'package:maintenance_app/models/kanban_task.dart'; // Pour KanbanTask et KanbanStatus
+import 'package:flutter/material.dart'; // Pour Colors (utilisé dans les données de démo)
+
 class HiveService extends ChangeNotifier {
   // Constantes pour les noms des "boîtes" (tables)
   static const String equipementsBoxName = 'equipements';
@@ -19,14 +22,27 @@ class HiveService extends ChangeNotifier {
   static const String collaborateursBoxName = 'collaborateurs';
   static const String reservationsBoxName = 'reservations';
   static const String articlesBoxName = 'articles';
+  static const String kanbanTasksBoxName =
+      'kanbanTasks'; // Nouvelle boîte pour Kanban
 
   var uuid = const Uuid();
+
+  // Déclaration des boîtes directement pour les getters
+  late Box<Equipement> _equipementsBox;
+  late Box<Intervention> _interventionsBox;
+  late Box<Panne> _pannesBox;
+  late Box<Collaborateur> _collaborateursBox;
+  late Box<Reservation> _reservationsBox;
+  late Box<Article> _articlesBox;
+  late Box<KanbanTask> _kanbanTasksBox;
 
   // Initialisation du service Hive
   Future<void> init() async {
     await Hive.initFlutter();
 
-    // Enregistrement des adaptateurs (empêche les erreurs de ré-enregistrement)
+    // --- ENREGISTREMENT DES ADAPTATEURS ---
+    // C'est CRUCIAL que tous les adaptateurs soient enregistrés AVANT d'ouvrir leurs boîtes.
+
     if (!Hive.isAdapterRegistered(EquipementAdapter().typeId)) {
       Hive.registerAdapter(EquipementAdapter());
     }
@@ -36,7 +52,6 @@ class HiveService extends ChangeNotifier {
     if (!Hive.isAdapterRegistered(PanneAdapter().typeId)) {
       Hive.registerAdapter(PanneAdapter());
     }
-    // Enregistrement des nouveaux adaptateurs
     if (!Hive.isAdapterRegistered(CollaborateurAdapter().typeId)) {
       Hive.registerAdapter(CollaborateurAdapter());
     }
@@ -50,13 +65,31 @@ class HiveService extends ChangeNotifier {
       Hive.registerAdapter(ArticleAdapter());
     }
 
-    // Ouverture des boîtes
-    await Hive.openBox<Equipement>(equipementsBoxName);
-    await Hive.openBox<Intervention>(interventionsBoxName);
-    await Hive.openBox<Panne>(pannesBoxName);
-    await Hive.openBox<Collaborateur>(collaborateursBoxName);
-    await Hive.openBox<Reservation>(reservationsBoxName);
-    await Hive.openBox<Article>(articlesBoxName);
+    // IMPORTANT: Enregistrez KanbanStatusAdapter et KanbanTaskAdapter ici
+    if (!Hive.isAdapterRegistered(KanbanStatusAdapter().typeId)) {
+      Hive.registerAdapter(KanbanStatusAdapter());
+    }
+    if (!Hive.isAdapterRegistered(KanbanTaskAdapter().typeId)) {
+      Hive.registerAdapter(KanbanTaskAdapter());
+    }
+
+    // --- OUVERTURE DES BOÎTES ---
+    // Les boîtes sont ouvertes APRÈS que tous leurs adaptateurs respectifs soient enregistrés.
+    _equipementsBox = await Hive.openBox<Equipement>(equipementsBoxName);
+    _interventionsBox = await Hive.openBox<Intervention>(interventionsBoxName);
+    _pannesBox = await Hive.openBox<Panne>(pannesBoxName);
+    _collaborateursBox =
+        await Hive.openBox<Collaborateur>(collaborateursBoxName);
+    _reservationsBox = await Hive.openBox<Reservation>(reservationsBoxName);
+    _articlesBox = await Hive.openBox<Article>(articlesBoxName);
+    _kanbanTasksBox = await Hive.openBox<KanbanTask>(
+        kanbanTasksBoxName); // Ouverture de la boîte Kanban
+
+    // Écoutez les changements de la boîte kanbanTasksBox pour notifier les listeners
+    // Cela garantit que l'UI se met à jour quand des tâches sont ajoutées/modifiées/supprimées
+    _kanbanTasksBox.watch().listen((_) {
+      notifyListeners();
+    });
 
     // Ajout des données de démo si les boîtes sont vides
     await addDemoData();
@@ -65,95 +98,92 @@ class HiveService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- GETTERS ---
-  // Accès direct et typé aux boîtes Hive pour une utilisation facile dans l'UI
-  Box<Equipement> get equipementsBox =>
-      Hive.box<Equipement>(equipementsBoxName);
-  Box<Intervention> get interventionsBox =>
-      Hive.box<Intervention>(interventionsBoxName);
-  Box<Panne> get pannesBox => Hive.box<Panne>(pannesBoxName);
-  Box<Collaborateur> get collaborateursBox =>
-      Hive.box<Collaborateur>(collaborateursBoxName);
-  Box<Reservation> get reservationsBox =>
-      Hive.box<Reservation>(reservationsBoxName);
-  Box<Article> get articlesBox => Hive.box<Article>(articlesBoxName);
+  // --- GETTERS pour accéder aux boîtes ---
+  Box<Equipement> get equipementsBox => _equipementsBox;
+  Box<Intervention> get interventionsBox => _interventionsBox;
+  Box<Panne> get pannesBox => _pannesBox;
+  Box<Collaborateur> get collaborateursBox => _collaborateursBox;
+  Box<Reservation> get reservationsBox => _reservationsBox;
+  Box<Article> get articlesBox => _articlesBox;
+  Box<KanbanTask> get kanbanTasksBox =>
+      _kanbanTasksBox; // Getter pour la boîte Kanban
+
+  // --- Getter pour toutes les tâches Kanban (utile pour l'affichage) ---
+  List<KanbanTask> get kanbanTasks => _kanbanTasksBox.values.toList();
 
   // --- OPÉRATIONS CRUD ---
 
   // Equipement
   Future<void> addOrUpdateEquipement(Equipement equipement) async {
-    await equipementsBox.put(equipement.id, equipement);
+    await _equipementsBox.put(equipement.id, equipement);
     notifyListeners();
   }
 
   Future<void> deleteEquipement(String id) async {
     final interventionsToDelete =
-        interventionsBox.values.where((i) => i.equipmentId == id).toList();
+        _interventionsBox.values.where((i) => i.equipmentId == id).toList();
     for (var i in interventionsToDelete) {
       await i.delete();
     }
     final pannesToDelete =
-        pannesBox.values.where((p) => p.equipmentId == id).toList();
+        _pannesBox.values.where((p) => p.equipmentId == id).toList();
     for (var p in pannesToDelete) {
       await p.delete();
     }
-    await equipementsBox.delete(id);
+    await _equipementsBox.delete(id);
     notifyListeners();
   }
 
   Equipement? getEquipementById(String id) {
-    return equipementsBox.get(id);
+    return _equipementsBox.get(id);
   }
 
   // Intervention
   Future<void> addOrUpdateIntervention(Intervention intervention) async {
-    await interventionsBox.put(intervention.id, intervention);
+    await _interventionsBox.put(intervention.id, intervention);
     notifyListeners();
   }
 
   Future<void> deleteIntervention(String id) async {
-    await interventionsBox.delete(id);
+    await _interventionsBox.delete(id);
     notifyListeners();
   }
 
   List<Intervention> getInterventionsForEquipement(String equipementId) {
-    return interventionsBox.values
+    return _interventionsBox.values
         .where((i) => i.equipmentId == equipementId)
         .toList();
   }
 
   // Panne
   Future<void> addOrUpdatePanne(Panne panne) async {
-    await pannesBox.put(panne.id, panne);
+    await _pannesBox.put(panne.id, panne);
     notifyListeners();
   }
 
   Future<void> deletePanne(String id) async {
-    await pannesBox.delete(id);
+    await _pannesBox.delete(id);
     notifyListeners();
   }
 
   List<Panne> getPannesForEquipement(String equipementId) {
-    return pannesBox.values
+    return _pannesBox.values
         .where((p) => p.equipmentId == equipementId)
         .toList();
   }
 
   // --- CRUD pour Collaborateur ---
   Future<void> addOrUpdateCollaborateur(Collaborateur collaborateur) async {
-    // Si l'objet a une clé, `put` le mettra à jour.
-    // Sinon, `add` en créera un nouveau avec une clé auto-générée.
     if (collaborateur.isInBox) {
-      await collaborateur
-          .save(); // Méthode de HiveObject pour sauvegarder les changements
+      await collaborateur.save();
     } else {
-      await collaborateursBox.add(collaborateur);
+      await _collaborateursBox.add(collaborateur);
     }
     notifyListeners();
   }
 
   Future<void> deleteCollaborateur(dynamic key) async {
-    await collaborateursBox.delete(key);
+    await _collaborateursBox.delete(key);
     notifyListeners();
   }
 
@@ -161,46 +191,64 @@ class HiveService extends ChangeNotifier {
     if (reservation.isInBox) {
       await reservation.save();
     } else {
-      await reservationsBox.add(reservation);
+      await _reservationsBox.add(reservation);
     }
     notifyListeners();
   }
 
   Future<void> deleteReservation(dynamic key) async {
-    await reservationsBox.delete(key);
+    await _reservationsBox.delete(key);
     notifyListeners();
   }
 
   // CRUD pour article
   Future<void> addOrUpdateArticle(Article article) async {
     if (article.isInBox) {
-      await article.save(); // Met à jour l'article existant
+      await article.save();
     } else {
-      await articlesBox.put(
-          article.codeArticle, article); // Ajoute un nouvel article
+      await _articlesBox.put(article.codeArticle, article);
     }
     notifyListeners();
   }
 
   Future<void> deleteArticle(String codeArticle) async {
-    // <<< Le type de la clé doit être String
-    await articlesBox
-        .delete(codeArticle); // Supprime l'article par son codeArticle
+    await _articlesBox.delete(codeArticle);
     notifyListeners();
   }
 
   Article? getArticleByCode(String codeArticle) {
-    // <<< Nom de méthode plus clair
-    return articlesBox.get(codeArticle);
+    return _articlesBox.get(codeArticle);
   }
 
   List<Article> getAllArticles() {
-    return articlesBox.values.toList();
+    return _articlesBox.values.toList();
   }
 
-  // --- DONNÉES DE N ---
+  // --- CRUD pour KanbanTask ---
+  Future<void> addOrUpdateKanbanTask(KanbanTask task) async {
+    await _kanbanTasksBox.put(task.id, task);
+    // notifyListeners() est déjà appelé par le listener de la boîte
+    // notifyListeners();
+  }
+
+  Future<void> deleteKanbanTask(String id) async {
+    await _kanbanTasksBox.delete(id);
+    // notifyListeners();
+  }
+
+  Future<void> updateKanbanTaskStatus(
+      String taskId, KanbanStatus newStatus) async {
+    final task = _kanbanTasksBox.get(taskId);
+    if (task != null) {
+      task.status = newStatus;
+      await task.save();
+      // notifyListeners();
+    }
+  }
+
+  // --- DONNÉES DE DÉMO ---
   Future<void> addDemoData() async {
-    if (equipementsBox.isEmpty) {
+    if (_equipementsBox.isEmpty) {
       final equipements = [
         Equipement(
             id: 'EQ001',
@@ -220,13 +268,12 @@ class HiveService extends ChangeNotifier {
             dateMiseEnService:
                 DateTime.now().subtract(const Duration(days: 25))),
       ];
-      // Boucle corrigée pour ajouter les équipements
       for (var e in equipements) {
-        await equipementsBox.put(e.id, e);
+        await _equipementsBox.put(e.id, e);
       }
     }
 
-    if (interventionsBox.isEmpty) {
+    if (_interventionsBox.isEmpty) {
       final interventions = [
         Intervention(
             id: 'INT001',
@@ -247,13 +294,12 @@ class HiveService extends ChangeNotifier {
             dureeHeures: 10,
             urgence: true),
       ];
-      // Boucle corrigée pour ajouter les interventions
       for (var i in interventions) {
         await addOrUpdateIntervention(i);
       }
     }
 
-    if (pannesBox.isEmpty) {
+    if (_pannesBox.isEmpty) {
       final pannes = [
         Panne(
             id: 'PAN001',
@@ -273,7 +319,7 @@ class HiveService extends ChangeNotifier {
       }
     }
 
-    if (collaborateursBox.isEmpty) {
+    if (_collaborateursBox.isEmpty) {
       final collaborateurs = [
         Collaborateur()
           ..prenom = 'Mohamed'
@@ -317,12 +363,11 @@ class HiveService extends ChangeNotifier {
           ..fonction = Role.administrateur,
       ];
       for (var c in collaborateurs) {
-        await collaborateursBox.add(c);
+        await _collaborateursBox.add(c);
       }
     }
 
-    // Ajout de données de démonstration pour les articles ---
-    if (articlesBox.isEmpty) {
+    if (_articlesBox.isEmpty) {
       final articles = [
         Article(
           category: "Consommables",
@@ -356,9 +401,75 @@ class HiveService extends ChangeNotifier {
         ),
       ];
       for (var article in articles) {
-        await articlesBox.put(article.codeArticle, article);
-        // Utilisation de add pour les nouveaux articles
+        await _articlesBox.put(article.codeArticle, article);
       }
     }
+
+    if (_kanbanTasksBox.isEmpty) {
+      final kanbanTasks = [
+        KanbanTask(
+          id: uuid.v4(),
+          title: 'Vérifier l\'huile de la presse',
+          description:
+              'Vérification du niveau d\'huile et appoint si nécessaire pour la presse hydraulique.',
+          dueDate: DateTime.now().add(const Duration(days: 7)),
+          status: KanbanStatus.todo,
+          colorValue: Colors.blue
+              .toARGB32(), // Utilisation de .value pour les démo (ou .toARGB32())
+        ),
+        KanbanTask(
+          id: uuid.v4(),
+          title: 'Changer courroie Convoyeur #1',
+          description:
+              'Remplacement de la courroie principale du convoyeur numéro 1.',
+          dueDate: DateTime.now().add(const Duration(days: 3)),
+          status: KanbanStatus.inProgress,
+          colorValue: Colors.orange.toARGB32(),
+        ),
+        KanbanTask(
+          id: uuid.v4(),
+          title: 'Nettoyage Four industriel',
+          description:
+              'Nettoyage complet des chambres de cuisson et des filtres du four.',
+          dueDate: DateTime.now().subtract(const Duration(days: 2)),
+          status: KanbanStatus.done,
+          colorValue: Colors.green.toARGB32(),
+        ),
+        KanbanTask(
+          id: uuid.v4(),
+          title: 'Planifier maintenance EQ003',
+          description:
+              'Préparer le planning de maintenance préventive pour l\'équipement EQ003.',
+          dueDate: DateTime.now().add(const Duration(days: 14)),
+          status: KanbanStatus.todo,
+          colorValue: Colors.purple.toARGB32(),
+        ),
+        KanbanTask(
+          id: uuid.v4(),
+          title: 'Commander pièces rechange',
+          description:
+              'Commander les pièces détachées pour la prochaine maintenance du Convoyeur #1.',
+          dueDate: DateTime.now().add(const Duration(days: 10)),
+          status: KanbanStatus.inProgress,
+          colorValue: Colors.red.toARGB32(),
+        ),
+      ];
+      for (var task in kanbanTasks) {
+        await _kanbanTasksBox.put(task.id, task);
+      }
+    }
+  }
+
+  // --- RENOMMER closeAllBoxes() en close() ---
+  // C'est la méthode que vous tentez d'appeler depuis main.dart
+  Future<void> close() async {
+    await _equipementsBox.close();
+    await _interventionsBox.close();
+    await _pannesBox.close();
+    await _collaborateursBox.close();
+    await _reservationsBox.close();
+    await _articlesBox.close();
+    await _kanbanTasksBox.close();
+    debugPrint('Toutes les boîtes Hive fermées.');
   }
 }
