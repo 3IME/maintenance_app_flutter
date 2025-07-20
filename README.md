@@ -21,5 +21,8 @@ Fonctions :
   Made with &#x1F496; by 3IME
 
 
+## Licence
 
+Ce projet est distribué sous la licence MIT.  
+Voir le fichier [LICENSE](LICENSE) pour plus d'informations.
 
